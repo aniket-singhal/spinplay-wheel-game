@@ -2,7 +2,9 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 
 const app = express();
-const PORT = 3000;
+
+// AFTER (Uses the environment port provided by the host)
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());

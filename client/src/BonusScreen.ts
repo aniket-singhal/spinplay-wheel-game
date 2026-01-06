@@ -85,7 +85,8 @@ export class BonusScreen extends Container {
 
         try {
             // Fetch result from server
-            const response = await fetch('http://localhost:3000/spin', {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+            const response = await fetch(`${apiUrl}/spin`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 // body: JSON.stringify({debugForceIndex: 4}) // Add { debugForceIndex: 0 } here to test specific wins
