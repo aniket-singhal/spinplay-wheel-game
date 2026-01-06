@@ -50,7 +50,7 @@ export class Wheel extends Container {
             sliceContainer.addChild(sliceSprite);
             
             // Rotate the slice into position
-            sliceContainer.rotation = i * this.sliceAngle;
+            sliceContainer.rotation = i * this.sliceAngle + Math.PI/2;
             
             // 2. Add Text to the Slice [cite: 26]
             const text = new Text({ text: this.values[i].toString(), style: textStyle });

@@ -16,52 +16,47 @@ export class BonusScreen extends Container {
         this.app = app;
         this.ui = ui;
         
-        // 1. Background Layer
         this.setupBackground();
 
-        // 2. Wheel Layer
+        // Setup Wheel
         this.wheel = new Wheel();
         this.wheel.x = this.app.screen.width / 2;
         this.wheel.y = this.app.screen.height / 2 + 50; 
         this.addChild(this.wheel);
 
-        // 3. Pointer Layer [cite: 17]
         this.setupPointer();
-
-        // 4. Effects Layer
+        
         this.winContainer = new Container();
         this.winContainer.x = this.app.screen.width / 2;
         this.winContainer.y = this.app.screen.height / 2;
         this.addChild(this.winContainer);
 
-        // 5. Text & Input Layer
         this.setupUI();
     }
 
     private setupBackground() {
-        const bg = Sprite.from('./images/background.png');
+        // IMPORTANT: Use the exact key string you used in Assets.load in main.ts
+        // Usually just 'background.png', not './images/...'
+        const bg = Sprite.from('./images/background.png'); 
         bg.anchor.set(0.5);
         bg.x = this.app.screen.width / 2;
         bg.y = this.app.screen.height / 2;
         
-        // Scale background to cover screen
+        // Scale to cover
         const scale = Math.max(this.app.screen.width / bg.width, this.app.screen.height / bg.height);
         bg.scale.set(scale);
-        
         this.addChild(bg);
     }
 
     private setupPointer() {
         const pointer = Sprite.from('./images/pointer.png');
-        pointer.anchor.set(0.5, 0); // Top center anchor
+        pointer.anchor.set(0.5, 0); 
         pointer.x = this.app.screen.width / 2;
-        // Position just above the wheel
         pointer.y = (this.app.screen.height / 2 + 50) - 280; 
         this.addChild(pointer);
     }
 
     private setupUI() {
-        // "PRESS TO SPIN" Text [cite: 24]
         this.statusText = new Text({ 
             text: 'PRESS TO SPIN', 
             style: { 
@@ -77,7 +72,6 @@ export class BonusScreen extends Container {
         this.statusText.y = this.app.screen.height - 80;
         this.addChild(this.statusText);
 
-        // Enable Interaction
         this.eventMode = 'static';
         this.cursor = 'pointer';
         this.on('pointerdown', this.handleSpin, this);
@@ -87,42 +81,78 @@ export class BonusScreen extends Container {
         if (this.isSpinning) return;
         this.isSpinning = true;
         this.statusText.text = "Spinning...";
-        this.winContainer.removeChildren(); // Clean old wins
+        this.winContainer.removeChildren();
 
         try {
-            // CALL BACKEND [cite: 28, 38]
+            // Fetch result from server
             const response = await fetch('http://localhost:3000/spin', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({debugForceIndex: 4}) // Add { debugForceIndex: 0 } here to test specific wins
+                // body: JSON.stringify({debugForceIndex: 4}) // Add { debugForceIndex: 0 } here to test specific wins
+                body: JSON.stringify({}) 
             });
 
             if (!response.ok) throw new Error("Server Error");
 
             const data = await response.json();
+            console.log(`Target: Index ${data.stopIndex} | Credits: ${data.creditsWon}`);
             this.spinTo(data.stopIndex, data.creditsWon);
 
         } catch (e) {
             console.error(e);
-            this.statusText.text = "Error - Try Again";
+            this.statusText.text = "Error - Check Console";
             this.isSpinning = false;
         }
     }
 
     private spinTo(stopIndex: number, creditsWon: number) {
         const sliceAngle = (Math.PI * 2) / 8;
-        const totalRotations = Math.PI * 2 * 5; // Spin 5 times
         
-        // Math to calculate stop angle so the correct index hits the TOP pointer
-        // If index 0 is at 0 rotation, we need to subtract its angle from the total
-        const targetRotation = this.wheel.rotation + totalRotations + (Math.PI * 2 - (stopIndex * sliceAngle));
+        // --- MATH FIX START ---
+        
+        // 1. Current state
+        // Normalize the current rotation to be between 0 and 2PI to make calculations clean
+        let currentRotation = this.wheel.rotation % (Math.PI * 2);
+        if (currentRotation < 0) currentRotation += Math.PI * 2; // Handle negative starting rotation
+
+        // 2. Where is the pointer?
+        // In Pixi, 0 is 3 o'clock. 
+        // 270 degrees (3PI/2) is 12 o'clock (Top).
+        const pointerAngle = 3 * Math.PI / 2;
+
+        // 3. Where does the slice need to be?
+        // If Index 0 is at 0 degrees, it must travel to 270.
+        // If Index 1 is at 45 degrees, it must travel to 270 (so 270 - 45 = 225 travel).
+        const targetSliceAngle = stopIndex * sliceAngle;
+        
+        // 4. Calculate target absolute rotation on the circle
+        let targetRotation = pointerAngle - targetSliceAngle;
+        
+        // Normalize target to 0-2PI
+        if (targetRotation < 0) targetRotation += Math.PI * 2;
+
+        // 5. Calculate the DIFFERENCE (How much to add to current)
+        let distanceToRotate = targetRotation - currentRotation;
+
+        // Ensure we spin CLOCKWISE (positive)
+        if (distanceToRotate < 0) {
+            distanceToRotate += Math.PI * 2;
+        }
+
+        // 6. Add Spins
+        // Add 5 full rotations (10PI) for excitement
+        const extraSpins = Math.PI * 2 * 5;
+        
+        const finalRotation = this.wheel.rotation + distanceToRotate + extraSpins;
+
+        // --- MATH FIX END ---
 
         gsap.to(this.wheel, {
-            rotation: targetRotation,
+            rotation: finalRotation,
             duration: 4,
-            ease: "back.out(0.3)", // [cite: 37] Added ease for polish
+            ease: "back.out(0.2)", 
             onComplete: () => {
-                this.celebrateWin(creditsWon); // 
+                this.celebrateWin(creditsWon);
             }
         });
     }

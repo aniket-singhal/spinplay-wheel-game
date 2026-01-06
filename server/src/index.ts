@@ -57,7 +57,9 @@ app.post('/spin', (req: Request, res: Response): any => { // Type 'any' to fix e
     } else {
         result = getWeightedResult();
     }
-
+    console.log(`index: ${result.id}`);
+    console.log(`credits: ${result.credits}`);
+    
     // Return the result to the client
     return res.json({
         stopIndex: result.id,
