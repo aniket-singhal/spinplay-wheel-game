@@ -94,7 +94,7 @@ export class BonusScreen extends Container {
             const response = await fetch('http://localhost:3000/spin', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({}) // Add { debugForceIndex: 0 } here to test specific wins
+                body: JSON.stringify({debugForceIndex: 4}) // Add { debugForceIndex: 0 } here to test specific wins
             });
 
             if (!response.ok) throw new Error("Server Error");
@@ -137,16 +137,16 @@ export class BonusScreen extends Container {
         sunburst.scale.set(0);
         this.winContainer.addChild(sunburst);
 
-        gsap.to(sunburst.scale, { x: 4, y: 4, duration: 1, ease: 'elastic.out' });
+        gsap.to(sunburst.scale, { x: 6, y: 6, duration: 1, ease: 'elastic.out' });
         gsap.to(sunburst, { rotation: Math.PI * 2, duration: 6, repeat: -1, ease: 'linear' });
 
         // 2. Coin Particle Explosion [cite: 37]
-        const sheet = Assets.get('coin-anim.json');
+        const sheet = Assets.get('./images/coin-anim.json');
         
         for(let i=0; i<30; i++) {
             const coin = new AnimatedSprite(sheet.animations['coin-anim']);
             coin.anchor.set(0.5);
-            coin.animationSpeed = 0.3 + Math.random() * 0.2;
+            coin.animationSpeed = 0.3 + Math.random() * 0.1;
             coin.play();
             this.winContainer.addChild(coin);
 
@@ -157,7 +157,7 @@ export class BonusScreen extends Container {
             gsap.to(coin, {
                 x: Math.cos(angle) * dist,
                 y: Math.sin(angle) * dist,
-                duration: 2,
+                duration: 6,
                 ease: 'power2.out',
                 alpha: 0, // Fade out
             });

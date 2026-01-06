@@ -1,9 +1,8 @@
 import { Container, Sprite, Text, TextStyle, Texture } from 'pixi.js';
-
 export class Wheel extends Container {
     private sliceAngle = (Math.PI * 2) / 8; // 8 equal slices
     // These values match the SERVER config exactly
-    private values = [5000, 200, 1000, 400, 2000, 200, 1000, 400]; 
+    private values = [5000, 200, 1000, 400, 2000, 200, 1000, 400];
 
     constructor() {
         super();
