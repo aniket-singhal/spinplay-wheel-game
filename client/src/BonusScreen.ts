@@ -1,0 +1,204 @@
+import { Application, Container, Sprite, Text, AnimatedSprite, Assets } from 'pixi.js';
+import gsap from 'gsap';
+import { Wheel } from './Wheel';
+import { UI } from './UI';
+
+export class BonusScreen extends Container {
+    private wheel: Wheel;
+    private ui: UI;
+    private app: Application;
+    private isSpinning = false;
+    private statusText: Text = new Text();
+    private winContainer: Container; // Holds effects like coins/sunburst
+
+    constructor(app: Application, ui: UI) {
+        super();
+        this.app = app;
+        this.ui = ui;
+        
+        this.setupBackground();
+
+        // Setup Wheel
+        this.wheel = new Wheel();
+        this.wheel.x = this.app.screen.width / 2;
+        this.wheel.y = this.app.screen.height / 2 + 50; 
+        this.addChild(this.wheel);
+
+        this.setupPointer();
+        
+        this.winContainer = new Container();
+        this.winContainer.x = this.app.screen.width / 2;
+        this.winContainer.y = this.app.screen.height / 2;
+        this.addChild(this.winContainer);
+
+        this.setupUI();
+    }
+
+    private setupBackground() {
+        // IMPORTANT: Use the exact key string you used in Assets.load in main.ts
+        // Usually just 'background.png', not './images/...'
+        const bg = Sprite.from('./images/background.png'); 
+        bg.anchor.set(0.5);
+        bg.x = this.app.screen.width / 2;
+        bg.y = this.app.screen.height / 2;
+        
+        // Scale to cover
+        const scale = Math.max(this.app.screen.width / bg.width, this.app.screen.height / bg.height);
+        bg.scale.set(scale);
+        this.addChild(bg);
+    }
+
+    private setupPointer() {
+        const pointer = Sprite.from('./images/pointer.png');
+        pointer.anchor.set(0.5, 0); 
+        pointer.x = this.app.screen.width / 2;
+        pointer.y = (this.app.screen.height / 2 + 50) - 280; 
+        this.addChild(pointer);
+    }
+
+    private setupUI() {
+        this.statusText = new Text({ 
+            text: 'PRESS TO SPIN', 
+            style: { 
+                fill: 0xFFFFFF, 
+                fontSize: 48, 
+                fontWeight: 'bold',
+                stroke: { width: 4 },
+                dropShadow: { alpha: 0.5, blur: 4, distance: 4 }
+            } 
+        });
+        this.statusText.anchor.set(0.5);
+        this.statusText.x = this.app.screen.width / 2;
+        this.statusText.y = this.app.screen.height - 80;
+        this.addChild(this.statusText);
+
+        this.eventMode = 'static';
+        this.cursor = 'pointer';
+        this.on('pointerdown', this.handleSpin, this);
+    }
+
+    private async handleSpin() {
+        if (this.isSpinning) return;
+        this.isSpinning = true;
+        this.statusText.text = "Spinning...";
+        this.winContainer.removeChildren();
+
+        try {
+            // Fetch result from server
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+            const response = await fetch(`${apiUrl}/spin`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                // body: JSON.stringify({debugForceIndex: 4}) // Add { debugForceIndex: 0 } here to test specific wins
+                body: JSON.stringify({}) 
+            });
+
+            if (!response.ok) throw new Error("Server Error");
+
+            const data = await response.json();
+            console.log(`Target: Index ${data.stopIndex} | Credits: ${data.creditsWon}`);
+            this.spinTo(data.stopIndex, data.creditsWon);
+
+        } catch (e) {
+            console.error(e);
+            this.statusText.text = "Error - Check Console";
+            this.isSpinning = false;
+        }
+    }
+
+    private spinTo(stopIndex: number, creditsWon: number) {
+        const sliceAngle = (Math.PI * 2) / 8;
+        
+        // --- MATH FIX START ---
+        
+        // 1. Current state
+        // Normalize the current rotation to be between 0 and 2PI to make calculations clean
+        let currentRotation = this.wheel.rotation % (Math.PI * 2);
+        if (currentRotation < 0) currentRotation += Math.PI * 2; // Handle negative starting rotation
+
+        // 2. Where is the pointer?
+        // In Pixi, 0 is 3 o'clock. 
+        // 270 degrees (3PI/2) is 12 o'clock (Top).
+        const pointerAngle = 3 * Math.PI / 2;
+
+        // 3. Where does the slice need to be?
+        // If Index 0 is at 0 degrees, it must travel to 270.
+        // If Index 1 is at 45 degrees, it must travel to 270 (so 270 - 45 = 225 travel).
+        const targetSliceAngle = stopIndex * sliceAngle;
+        
+        // 4. Calculate target absolute rotation on the circle
+        let targetRotation = pointerAngle - targetSliceAngle;
+        
+        // Normalize target to 0-2PI
+        if (targetRotation < 0) targetRotation += Math.PI * 2;
+
+        // 5. Calculate the DIFFERENCE (How much to add to current)
+        let distanceToRotate = targetRotation - currentRotation;
+
+        // Ensure we spin CLOCKWISE (positive)
+        if (distanceToRotate < 0) {
+            distanceToRotate += Math.PI * 2;
+        }
+
+        // 6. Add Spins
+        // Add 5 full rotations (10PI) for excitement
+        const extraSpins = Math.PI * 2 * 5;
+        
+        const finalRotation = this.wheel.rotation + distanceToRotate + extraSpins;
+
+        // --- MATH FIX END ---
+
+        gsap.to(this.wheel, {
+            rotation: finalRotation,
+            duration: 4,
+            ease: "back.out(0.2)", 
+            onComplete: () => {
+                this.celebrateWin(creditsWon);
+            }
+        });
+    }
+
+    private celebrateWin(amount: number) {
+        this.statusText.text = `YOU WON ${amount} CREDITS!`; // [cite: 31]
+        this.ui.updateBalance(amount); // [cite: 32]
+
+        // 1. Sunburst Effect
+        const sunburst = Sprite.from('./images/sunburst.png');
+        sunburst.anchor.set(0.5);
+        sunburst.scale.set(0);
+        this.winContainer.addChild(sunburst);
+
+        gsap.to(sunburst.scale, { x: 6, y: 6, duration: 1, ease: 'elastic.out' });
+        gsap.to(sunburst, { rotation: Math.PI * 2, duration: 6, repeat: -1, ease: 'linear' });
+
+        // 2. Coin Particle Explosion [cite: 37]
+        const sheet = Assets.get('./images/coin-anim.json');
+        
+        for(let i=0; i<30; i++) {
+            const coin = new AnimatedSprite(sheet.animations['coin-anim']);
+            coin.anchor.set(0.5);
+            coin.animationSpeed = 0.3 + Math.random() * 0.1;
+            coin.play();
+            this.winContainer.addChild(coin);
+
+            // Explode outwards
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 100 + Math.random() * 400;
+            
+            gsap.to(coin, {
+                x: Math.cos(angle) * dist,
+                y: Math.sin(angle) * dist,
+                duration: 6,
+                ease: 'power2.out',
+                alpha: 0, // Fade out
+            });
+        }
+
+        // Reset game state after delay
+        setTimeout(() => {
+            this.isSpinning = false;
+            this.statusText.text = "PRESS TO SPIN";
+            this.winContainer.removeChildren(); // Clear effects
+        }, 4000);
+    }
+}
