@@ -2,6 +2,7 @@ import { Application, Container, Sprite, Text, AnimatedSprite, Assets } from 'pi
 import gsap from 'gsap';
 import { Wheel } from './Wheel';
 import { UI } from './UI';
+import { Howl } from 'howler'; // <--- Import Howler
 
 export class BonusScreen extends Container {
     private wheel: Wheel;
@@ -10,22 +11,35 @@ export class BonusScreen extends Container {
     private isSpinning = false;
     private statusText: Text = new Text();
     private winContainer: Container; // Holds effects like coins/sunburst
+    // Define Sounds
+    private clickSound: Howl;
+    private winSound: Howl;
 
     constructor(app: Application, ui: UI) {
         super();
         this.app = app;
         this.ui = ui;
-        
+        // Initialize Howler Sounds
+        this.clickSound = new Howl({
+            src: ['./sounds/wheel-click.wav'],
+            volume: 0.5
+        });
+
+        this.winSound = new Howl({
+            src: ['./sounds/wheel-landing.wav'],
+            volume: 0.8
+        });
+
         this.setupBackground();
 
         // Setup Wheel
         this.wheel = new Wheel();
         this.wheel.x = this.app.screen.width / 2;
-        this.wheel.y = this.app.screen.height / 2 + 50; 
+        this.wheel.y = this.app.screen.height / 2 + 50;
         this.addChild(this.wheel);
 
         this.setupPointer();
-        
+
         this.winContainer = new Container();
         this.winContainer.x = this.app.screen.width / 2;
         this.winContainer.y = this.app.screen.height / 2;
@@ -37,11 +51,11 @@ export class BonusScreen extends Container {
     private setupBackground() {
         // IMPORTANT: Use the exact key string you used in Assets.load in main.ts
         // Usually just 'background.png', not './images/...'
-        const bg = Sprite.from('./images/background.png'); 
+        const bg = Sprite.from('./images/background.png');
         bg.anchor.set(0.5);
         bg.x = this.app.screen.width / 2;
         bg.y = this.app.screen.height / 2;
-        
+
         // Scale to cover
         const scale = Math.max(this.app.screen.width / bg.width, this.app.screen.height / bg.height);
         bg.scale.set(scale);
@@ -50,22 +64,22 @@ export class BonusScreen extends Container {
 
     private setupPointer() {
         const pointer = Sprite.from('./images/pointer.png');
-        pointer.anchor.set(0.5, 0); 
+        pointer.anchor.set(0.5, 0);
         pointer.x = this.app.screen.width / 2;
-        pointer.y = (this.app.screen.height / 2 + 50) - 280; 
+        pointer.y = (this.app.screen.height / 2 + 50) - 280;
         this.addChild(pointer);
     }
 
     private setupUI() {
-        this.statusText = new Text({ 
-            text: 'PRESS TO SPIN', 
-            style: { 
-                fill: 0xFFFFFF, 
-                fontSize: 48, 
+        this.statusText = new Text({
+            text: 'PRESS TO SPIN',
+            style: {
+                fill: 0xFFFFFF,
+                fontSize: 48,
                 fontWeight: 'bold',
                 stroke: { width: 4 },
                 dropShadow: { alpha: 0.5, blur: 4, distance: 4 }
-            } 
+            }
         });
         this.statusText.anchor.set(0.5);
         this.statusText.x = this.app.screen.width / 2;
@@ -90,7 +104,7 @@ export class BonusScreen extends Container {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 // body: JSON.stringify({debugForceIndex: 4}) // Add { debugForceIndex: 0 } here to test specific wins
-                body: JSON.stringify({}) 
+                body: JSON.stringify({})
             });
 
             if (!response.ok) throw new Error("Server Error");
@@ -108,9 +122,9 @@ export class BonusScreen extends Container {
 
     private spinTo(stopIndex: number, creditsWon: number) {
         const sliceAngle = (Math.PI * 2) / 8;
-        
+
         // --- MATH FIX START ---
-        
+
         // 1. Current state
         // Normalize the current rotation to be between 0 and 2PI to make calculations clean
         let currentRotation = this.wheel.rotation % (Math.PI * 2);
@@ -125,10 +139,10 @@ export class BonusScreen extends Container {
         // If Index 0 is at 0 degrees, it must travel to 270.
         // If Index 1 is at 45 degrees, it must travel to 270 (so 270 - 45 = 225 travel).
         const targetSliceAngle = stopIndex * sliceAngle;
-        
+
         // 4. Calculate target absolute rotation on the circle
         let targetRotation = pointerAngle - targetSliceAngle;
-        
+
         // Normalize target to 0-2PI
         if (targetRotation < 0) targetRotation += Math.PI * 2;
 
@@ -143,16 +157,30 @@ export class BonusScreen extends Container {
         // 6. Add Spins
         // Add 5 full rotations (10PI) for excitement
         const extraSpins = Math.PI * 2 * 5;
-        
+
         const finalRotation = this.wheel.rotation + distanceToRotate + extraSpins;
 
-        // --- MATH FIX END ---
+        // Sound Logic Variable
+        let lastStep = Math.floor(this.wheel.rotation / sliceAngle);
+
 
         gsap.to(this.wheel, {
             rotation: finalRotation,
             duration: 4,
-            ease: "back.out(0.2)", 
+            ease: "back.out(0.2)",
+            onUpdate: () => {
+                // Check if we crossed a slice boundary
+                const currentStep = Math.floor(this.wheel.rotation / sliceAngle);
+
+                if (currentStep !== lastStep) {
+                    // Play Click using Howler
+                    this.clickSound.play();
+                    lastStep = currentStep;
+                }
+            },
             onComplete: () => {
+                // Play Win using Howler
+                this.winSound.play();
                 this.celebrateWin(creditsWon);
             }
         });
@@ -173,8 +201,8 @@ export class BonusScreen extends Container {
 
         // 2. Coin Particle Explosion [cite: 37]
         const sheet = Assets.get('./images/coin-anim.json');
-        
-        for(let i=0; i<30; i++) {
+
+        for (let i = 0; i < 30; i++) {
             const coin = new AnimatedSprite(sheet.animations['coin-anim']);
             coin.anchor.set(0.5);
             coin.animationSpeed = 0.3 + Math.random() * 0.1;
@@ -184,7 +212,7 @@ export class BonusScreen extends Container {
             // Explode outwards
             const angle = Math.random() * Math.PI * 2;
             const dist = 100 + Math.random() * 400;
-            
+
             gsap.to(coin, {
                 x: Math.cos(angle) * dist,
                 y: Math.sin(angle) * dist,
