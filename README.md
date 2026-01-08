@@ -2,6 +2,9 @@
 
 A full-stack weighted bonus wheel game built with **TypeScript**, **PixiJS**, and **Express**. This project was developed as a coding assessment to demonstrate clean architecture, game loop logic, and secure backend RNG.
 
+## 🔗 Live Demo
+**Play the game here:** [Click to Play](https://spinplay-wheel-game.vercel.app/)
+
 ## 🛠️ Tech Stack
 
 * **Frontend:** PixiJS (v8), TypeScript, Vite, GSAP (Animations), Howler.js (Sound)
