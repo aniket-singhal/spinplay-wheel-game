@@ -5,10 +5,8 @@ import { Howl } from 'howler';
 export class UI extends Container {
     private balanceText: Text;
     private rollupSound: Howl;
-    // "actualBalance" is the real money logic
     private actualBalance: number = 1000;
 
-    // "displayedBalance" is the number currently shown on screen (for animation)
     private displayedBalance: number = 1000;
 
     constructor() {
@@ -22,25 +20,23 @@ export class UI extends Container {
             fontFamily: 'Arial',
             fontSize: 32,
             fontWeight: 'bold',
-            fill: '#ffffff', // White text
-            stroke: { color: '#000000', width: 4 }, // Black outline for visibility
+            fill: '#ffffff',
+            stroke: { color: '#000000', width: 4 },
         });
 
         this.balanceText = new Text({ text: `Credits: ${this.actualBalance}`, style });
-        this.balanceText.position.set(20, 20); // Top-left corner
+        this.balanceText.position.set(20, 20);
         this.addChild(this.balanceText);
     }
 
     public updateBalance(amount: number) {
-        // Roll-up logic could be added here, keeping it simple for now [cite: 32]
         this.actualBalance += amount;
         gsap.to(this, {
             displayedBalance: this.actualBalance,
-            duration: 2.0, // Length of the "rollup" sound effect typically
-            ease: "power1.out", // Slows down slightly at the end
+            duration: 2.0,
+            ease: "power1.out",
             onUpdate: () => {
                 this.rollupSound.play();
-                // Update text every frame. Math.floor removes decimals.
                 this.balanceText.text = `Credits: ${Math.floor(this.displayedBalance)}`;
             }
         });

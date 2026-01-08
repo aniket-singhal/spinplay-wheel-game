@@ -2,7 +2,8 @@ import { Application, Container, Sprite, Text, AnimatedSprite, Assets } from 'pi
 import gsap from 'gsap';
 import { Wheel } from './Wheel';
 import { UI } from './UI';
-import { Howl } from 'howler'; // <--- Import Howler
+import { Howl } from 'howler';
+import { DebugPanel } from './DebugPanel';
 
 export class BonusScreen extends Container {
     private wheel: Wheel;
@@ -10,16 +11,18 @@ export class BonusScreen extends Container {
     private app: Application;
     private isSpinning = false;
     private statusText: Text = new Text();
-    private winContainer: Container; // Holds effects like coins/sunburst
-    // Define Sounds
+    private winContainer: Container;
+    private debugPanel!: DebugPanel;
     private clickSound: Howl;
     private winSound: Howl;
+    public onFinish: () => void;
 
-    constructor(app: Application, ui: UI) {
+    constructor(app: Application, ui: UI, onFinish: () => void) {
         super();
         this.app = app;
         this.ui = ui;
-        // Initialize Howler Sounds
+
+        this.onFinish = onFinish;
         this.clickSound = new Howl({
             src: ['./sounds/wheel-click.wav'],
             volume: 0.5
@@ -45,18 +48,23 @@ export class BonusScreen extends Container {
         this.winContainer.y = this.app.screen.height / 2;
         this.addChild(this.winContainer);
 
+        this.setupDebugPanel();
         this.setupUI();
     }
 
+    private setupDebugPanel() {
+        this.debugPanel = new DebugPanel();
+        this.debugPanel.x = 1280 - 240; 
+        this.debugPanel.y = 80;
+        this.addChild(this.debugPanel);
+    }
+
     private setupBackground() {
-        // IMPORTANT: Use the exact key string you used in Assets.load in main.ts
-        // Usually just 'background.png', not './images/...'
         const bg = Sprite.from('./images/background.png');
         bg.anchor.set(0.5);
         bg.x = this.app.screen.width / 2;
         bg.y = this.app.screen.height / 2;
 
-        // Scale to cover
         const scale = Math.max(this.app.screen.width / bg.width, this.app.screen.height / bg.height);
         bg.scale.set(scale);
         this.addChild(bg);
@@ -85,10 +93,9 @@ export class BonusScreen extends Container {
         this.statusText.x = this.app.screen.width / 2;
         this.statusText.y = this.app.screen.height - 80;
         this.addChild(this.statusText);
-
-        this.eventMode = 'static';
-        this.cursor = 'pointer';
-        this.on('pointerdown', this.handleSpin, this);
+        this.wheel.on('spin', () => {
+            this.handleSpin();
+        });
     }
 
     private async handleSpin() {
@@ -96,15 +103,19 @@ export class BonusScreen extends Container {
         this.isSpinning = true;
         this.statusText.text = "Spinning...";
         this.winContainer.removeChildren();
+        const forceIndex = this.debugPanel.getForceIndex();
 
+        const payload: any = {};
+        if (forceIndex !== undefined) {
+            console.log(`[Debug] Forcing Index: ${forceIndex}`);
+            payload.debugForceIndex = forceIndex;
+        }
         try {
-            // Fetch result from server
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
             const response = await fetch(`${apiUrl}/spin`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                // body: JSON.stringify({debugForceIndex: 4}) // Add { debugForceIndex: 0 } here to test specific wins
-                body: JSON.stringify({})
+                body: JSON.stringify(payload)
             });
 
             if (!response.ok) throw new Error("Server Error");
@@ -122,8 +133,6 @@ export class BonusScreen extends Container {
 
     private spinTo(stopIndex: number, creditsWon: number) {
         const sliceAngle = (Math.PI * 2) / 8;
-
-        // --- MATH FIX START ---
 
         // 1. Current state
         // Normalize the current rotation to be between 0 and 2PI to make calculations clean
@@ -159,10 +168,7 @@ export class BonusScreen extends Container {
         const extraSpins = Math.PI * 2 * 5;
 
         const finalRotation = this.wheel.rotation + distanceToRotate + extraSpins;
-
-        // Sound Logic Variable
         let lastStep = Math.floor(this.wheel.rotation / sliceAngle);
-
 
         gsap.to(this.wheel, {
             rotation: finalRotation,
@@ -173,13 +179,11 @@ export class BonusScreen extends Container {
                 const currentStep = Math.floor(this.wheel.rotation / sliceAngle);
 
                 if (currentStep !== lastStep) {
-                    // Play Click using Howler
                     this.clickSound.play();
                     lastStep = currentStep;
                 }
             },
             onComplete: () => {
-                // Play Win using Howler
                 this.winSound.play();
                 this.celebrateWin(creditsWon);
             }
@@ -187,8 +191,8 @@ export class BonusScreen extends Container {
     }
 
     private celebrateWin(amount: number) {
-        this.statusText.text = `YOU WON ${amount} CREDITS!`; // [cite: 31]
-        this.ui.updateBalance(amount); // [cite: 32]
+        this.statusText.text = `YOU WON ${amount} CREDITS!`;
+        this.ui.updateBalance(amount);
 
         // 1. Sunburst Effect
         const sunburst = Sprite.from('./images/sunburst.png');
@@ -199,7 +203,7 @@ export class BonusScreen extends Container {
         gsap.to(sunburst.scale, { x: 6, y: 6, duration: 1, ease: 'elastic.out' });
         gsap.to(sunburst, { rotation: Math.PI * 2, duration: 6, repeat: -1, ease: 'linear' });
 
-        // 2. Coin Particle Explosion [cite: 37]
+        // 2. Coin Particle Explosion
         const sheet = Assets.get('./images/coin-anim.json');
 
         for (let i = 0; i < 30; i++) {
@@ -218,7 +222,7 @@ export class BonusScreen extends Container {
                 y: Math.sin(angle) * dist,
                 duration: 6,
                 ease: 'power2.out',
-                alpha: 0, // Fade out
+                alpha: 0,
             });
         }
 
@@ -226,7 +230,8 @@ export class BonusScreen extends Container {
         setTimeout(() => {
             this.isSpinning = false;
             this.statusText.text = "PRESS TO SPIN";
-            this.winContainer.removeChildren(); // Clear effects
+            this.winContainer.removeChildren();
+            this.onFinish();
         }, 4000);
     }
 }

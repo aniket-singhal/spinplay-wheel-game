@@ -2,6 +2,7 @@ import { Application, Assets } from 'pixi.js';
 import { UI } from './UI';
 import { BonusScreen } from './BonusScreen';
 import './style.css';
+import { TitleScreen } from './TitleScreen';
 
 (async () => {
     // 1. Initialize Pixi Application
@@ -12,13 +13,12 @@ import './style.css';
         resizeTo: window,
         width: window.innerWidth,
         height: window.innerHeight,
-        // resolution: window.devicePixelRatio || 1, --- IGNORE ---
+        // resolution: window.devicePixelRatio || 1,
     });
 
     document.body.appendChild(app.canvas);
 
     // 2. Load Assets (Preloader)
-    // We load everything here so we can use them immediately in classes
     await Assets.load([
         './images/background.png',
         './images/wheel-slice.png',
@@ -31,9 +31,39 @@ import './style.css';
 
     // 3. Setup Game Scenes
     const ui = new UI();
-    const bonusScreen = new BonusScreen(app, ui);
+    let titleScreen: TitleScreen;
+    let bonusScreen: BonusScreen;
+    const showTitle = () => {
+        if (bonusScreen) {
+            app.stage.removeChild(bonusScreen);
+        }
 
-    // Add to stage
-    app.stage.addChild(bonusScreen);
-    app.stage.addChild(ui); // UI on top
+        titleScreen = new TitleScreen(() => {
+            console.log("Start Clicked -> Going to Bonus");
+            showBonus();
+        });
+        
+        app.stage.addChild(titleScreen);
+        
+        app.stage.setChildIndex(ui, app.stage.children.length - 1);
+    };
+
+    // Function to show Bonus
+    const showBonus = () => {
+        if (titleScreen) {
+            app.stage.removeChild(titleScreen);
+        }
+
+        bonusScreen = new BonusScreen(app, ui, () => {
+             console.log("Bonus Finished -> Back to Title");
+             showTitle();
+        });
+
+        app.stage.addChild(bonusScreen);
+        
+        app.stage.setChildIndex(ui, app.stage.children.length - 1);
+    };
+
+    app.stage.addChild(ui);
+    showTitle();
 })();
