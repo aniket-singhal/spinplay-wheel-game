@@ -73,6 +73,3 @@ The game includes a **Debug Panel** to verify that specific outcomes trigger cor
 * `src/UI.ts`: Global overlay for credit balance and rollup effects.
 * `src/DebugPanel.ts`: Tool for forcing specific spin results.
 
-```
-
-```
