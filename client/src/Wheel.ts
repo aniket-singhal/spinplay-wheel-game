@@ -2,6 +2,7 @@ import { Container, Sprite, Text, TextStyle, Texture } from 'pixi.js';
 export class Wheel extends Container {
     private sliceAngle = (Math.PI * 2) / 8;
     private values = [5000, 200, 1000, 400, 2000, 200, 1000, 400];
+    public centerText!: Text;
 
     constructor() {
         super();
@@ -59,5 +60,19 @@ export class Wheel extends Container {
             this.emit('spin');
         });
         this.addChild(centerSprite);
+
+        this.centerText = new Text({
+            text: 'SPIN',
+            style: {
+                fontFamily: 'Arial',
+                fontSize: 40,
+                fontWeight: 'bold',
+                fill: '#34942dff',
+                stroke: { color: '#000000', width: 3 }
+            }
+        });
+        this.centerText.anchor.set(0.5);
+        this.centerText.eventMode = 'none';
+        this.addChild(this.centerText); 
     }
 }

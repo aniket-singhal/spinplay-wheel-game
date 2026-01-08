@@ -12,7 +12,7 @@ export class BonusScreen extends Container {
     private wheel: Wheel;
     private ui: UI;
     private isSpinning = false;
-    private statusText: Text = new Text();
+    private messageText!: Text; 
     private winContainer: Container;
     private debugPanel!: DebugPanel;
     private clickSound: Howl;
@@ -22,7 +22,6 @@ export class BonusScreen extends Container {
     constructor(ui: UI, onFinish: () => void) {
         super();
         this.ui = ui;
-
         this.onFinish = onFinish;
         this.clickSound = new Howl({
             src: ['./sounds/wheel-click.wav'],
@@ -36,13 +35,10 @@ export class BonusScreen extends Container {
 
         this.setupBackground();
 
-        // Setup Wheel
         this.wheel = new Wheel();
         this.wheel.x = DESIGN_WIDTH / 2;
-        this.wheel.y = DESIGN_HEIGHT / 2;
-        this.wheel.scale.set(0.7);
-        // -------------------------------
-
+        this.wheel.y = DESIGN_HEIGHT / 2; 
+        this.wheel.scale.set(0.7); 
         this.addChild(this.wheel);
 
         this.setupPointer();
@@ -78,27 +74,26 @@ export class BonusScreen extends Container {
         const pointer = Sprite.from('./images/pointer.png');
         pointer.anchor.set(0.5, 0);
         pointer.x = DESIGN_WIDTH / 2;
-        pointer.y = (DESIGN_HEIGHT / 2) - 200;
-        // ---------------------------------------------
-
+        pointer.y = (DESIGN_HEIGHT / 2) - 200; 
         this.addChild(pointer);
     }
 
     private setupUI() {
-        this.statusText = new Text({
+        // Status Message at bottom
+        this.messageText = new Text({
             text: 'PRESS TO SPIN',
             style: {
                 fill: 0xFFFFFF,
-                fontSize: 48,
+                fontSize: 40,
                 fontWeight: 'bold',
                 stroke: { width: 4 },
                 dropShadow: { alpha: 0.5, blur: 4, distance: 4 }
             }
         });
-        this.statusText.anchor.set(0.5);
-        this.statusText.x = DESIGN_WIDTH / 2;
-        this.statusText.y = DESIGN_HEIGHT - 50;
-        this.addChild(this.statusText);
+        this.messageText.anchor.set(0.5);
+        this.messageText.x = DESIGN_WIDTH / 2;
+        this.messageText.y = DESIGN_HEIGHT - 60; 
+        this.addChild(this.messageText);
         this.wheel.on('spin', () => {
             this.handleSpin();
         });
@@ -107,7 +102,8 @@ export class BonusScreen extends Container {
     private async handleSpin() {
         if (this.isSpinning) return;
         this.isSpinning = true;
-        this.statusText.text = "Spinning...";
+        this.messageText.text = "Spinning...";
+        this.wheel.centerText.visible = false;
         this.winContainer.removeChildren();
         const forceIndex = this.debugPanel.getForceIndex();
 
@@ -132,7 +128,8 @@ export class BonusScreen extends Container {
 
         } catch (e) {
             console.error(e);
-            this.statusText.text = "Error - Check Console";
+            this.messageText.text = "Error - Try Again";
+            this.wheel.centerText.visible = true;
             this.isSpinning = false;
         }
     }
@@ -141,7 +138,7 @@ export class BonusScreen extends Container {
         const sliceAngle = (Math.PI * 2) / 8;
 
         let currentRotation = this.wheel.rotation % (Math.PI * 2);
-        if (currentRotation < 0) currentRotation += Math.PI * 2;
+        if (currentRotation < 0) currentRotation += Math.PI * 2; 
 
         const pointerAngle = 3 * Math.PI / 2;
         const targetSliceAngle = stopIndex * sliceAngle;
@@ -180,7 +177,7 @@ export class BonusScreen extends Container {
     }
 
     private celebrateWin(amount: number) {
-        this.statusText.text = `YOU WON ${amount} CREDITS!`;
+        this.messageText.text = `YOU WON ${amount} CREDITS!`;
         this.ui.updateBalance(amount);
 
         const sunburst = Sprite.from('./images/sunburst.png');
@@ -214,7 +211,8 @@ export class BonusScreen extends Container {
 
         setTimeout(() => {
             this.isSpinning = false;
-            this.statusText.text = "PRESS TO SPIN";
+            this.wheel.centerText.visible = true;
+            this.messageText.text = "PRESS TO SPIN";
             this.winContainer.removeChildren();
             this.onFinish();
         }, 4000);
