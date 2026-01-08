@@ -3,15 +3,12 @@ import cors from 'cors';
 
 const app = express();
 
-// AFTER (Uses the environment port provided by the host)
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
 
 // --- 1. CONFIGURATION ---
-// The math table from the design document 
-// We assign an ID (0-7) to each slice.
 interface WheelSegment {
     id: number;
     credits: number;
@@ -46,9 +43,8 @@ const getWeightedResult = (): WheelSegment => {
 };
 
 // --- 3. ENDPOINTS ---
-app.post('/spin', (req: Request, res: Response): any => { // Type 'any' to fix express return type issues
+app.post('/spin', (req: Request, res: Response): any => { 
     // Debug Control: Allow forcing a specific result 
-    // Usage: Send JSON { "debugForceIndex": 2 }
     const { debugForceIndex } = req.body;
 
     let result: WheelSegment;
@@ -57,6 +53,7 @@ app.post('/spin', (req: Request, res: Response): any => { // Type 'any' to fix e
         console.log(`[DEBUG] Forcing stop at index: ${debugForceIndex}`);
         result = SEGMENTS[debugForceIndex];
     } else {
+        console.log(`[SERVER] Random Spin`);
         result = getWeightedResult();
     }
     console.log(`index: ${result.id}`);
