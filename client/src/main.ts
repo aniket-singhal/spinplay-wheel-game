@@ -1,24 +1,25 @@
-import { Application, Assets } from 'pixi.js';
+import { Application, Assets, Container } from 'pixi.js';
 import { UI } from './UI';
 import { BonusScreen } from './BonusScreen';
 import './style.css';
 import { TitleScreen } from './TitleScreen';
 
+const DESIGN_WIDTH = 1280;
+const DESIGN_HEIGHT = 720;
+
 (async () => {
-    // 1. Initialize Pixi Application
     const app = new Application();
-    
+
     await app.init({
         background: '#000000',
         resizeTo: window,
         width: window.innerWidth,
         height: window.innerHeight,
-        // resolution: window.devicePixelRatio || 1,
+        autoDensity: true,
     });
 
     document.body.appendChild(app.canvas);
 
-    // 2. Load Assets (Preloader)
     await Assets.load([
         './images/background.png',
         './images/wheel-slice.png',
@@ -26,44 +27,65 @@ import { TitleScreen } from './TitleScreen';
         './images/pointer.png',
         './images/glow.png',
         './images/sunburst.png',
-        './images/coin-anim.json' 
+        './images/coin-anim.json'
     ]);
 
-    // 3. Setup Game Scenes
+    const gameContainer = new Container();
+    app.stage.addChild(gameContainer);
+
     const ui = new UI();
-    let titleScreen: TitleScreen;
-    let bonusScreen: BonusScreen;
+    gameContainer.addChild(ui);
+
+    let titleScreen: TitleScreen | undefined;
+    let bonusScreen: BonusScreen | undefined;
+
+    const showBonus = () => {
+        if (titleScreen) {
+            gameContainer.removeChild(titleScreen);
+            titleScreen.destroy({ children: true });
+            titleScreen = undefined;
+        }
+
+        bonusScreen = new BonusScreen(ui, () => {
+            showTitle();
+        });
+
+        gameContainer.addChild(bonusScreen);
+        gameContainer.setChildIndex(ui, gameContainer.children.length - 1);
+    };
+
     const showTitle = () => {
         if (bonusScreen) {
-            app.stage.removeChild(bonusScreen);
+            gameContainer.removeChild(bonusScreen);
+            bonusScreen.destroy({ children: true });
+            bonusScreen = undefined;
         }
 
         titleScreen = new TitleScreen(() => {
-            console.log("Start Clicked -> Going to Bonus");
             showBonus();
         });
-        
-        app.stage.addChild(titleScreen);
-        
-        app.stage.setChildIndex(ui, app.stage.children.length - 1);
+
+        gameContainer.addChild(titleScreen);
+        gameContainer.setChildIndex(ui, gameContainer.children.length - 1);
     };
 
-    // Function to show Bonus
-    const showBonus = () => {
-        if (titleScreen) {
-            app.stage.removeChild(titleScreen);
-        }
+    const resize = () => {
+        const screenWidth = window.innerWidth;
+        const screenHeight = window.innerHeight;
 
-        bonusScreen = new BonusScreen(app, ui, () => {
-             console.log("Bonus Finished -> Back to Title");
-             showTitle();
-        });
+        const scale = Math.min(
+            screenWidth / DESIGN_WIDTH,
+            screenHeight / DESIGN_HEIGHT
+        );
 
-        app.stage.addChild(bonusScreen);
-        
-        app.stage.setChildIndex(ui, app.stage.children.length - 1);
+        gameContainer.scale.set(scale);
+
+        gameContainer.x = (screenWidth - DESIGN_WIDTH * scale) / 2;
+        gameContainer.y = (screenHeight - DESIGN_HEIGHT * scale) / 2;
     };
 
-    app.stage.addChild(ui);
+    window.addEventListener('resize', resize);
+
+    resize();
     showTitle();
 })();

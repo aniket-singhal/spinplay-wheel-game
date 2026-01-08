@@ -1,4 +1,5 @@
 import { Container, Text, Graphics } from 'pixi.js';
+const DESIGN_WIDTH = 1280;
 
 export class TitleScreen extends Container {
     public onStart: () => void;
@@ -22,13 +23,13 @@ export class TitleScreen extends Container {
             }
         });
         title.anchor.set(0.5);
-        title.x = 1280 / 2; 
+        title.x = DESIGN_WIDTH / 2; 
         title.y = 200;
         this.addChild(title);
 
         // 2. Play Button
         const button = new Container();
-        button.x = 1280 / 2;
+        button.x = DESIGN_WIDTH / 2;
         button.y = 500;
         
         // Button Shape
