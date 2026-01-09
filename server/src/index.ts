@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import { SEGMENTS, WheelSegment } from './game-config';
 
 const app = express();
 
@@ -8,28 +9,9 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// --- 1. CONFIGURATION ---
-interface WheelSegment {
-    id: number;
-    credits: number;
-    weight: number;
-}
-
-const SEGMENTS: WheelSegment[] = [
-    { id: 0, credits: 5000, weight: 4 },
-    { id: 1, credits: 200,  weight: 100 },
-    { id: 2, credits: 1000, weight: 20 },
-    { id: 3, credits: 400,  weight: 50 },
-    { id: 4, credits: 2000, weight: 10 },
-    { id: 5, credits: 200,  weight: 100 },
-    { id: 6, credits: 1000, weight: 20 },
-    { id: 7, credits: 400,  weight: 50 }
-];
-
 // Calculate total weight (should be 354 based on the table)
 const TOTAL_WEIGHT = SEGMENTS.reduce((sum, seg) => sum + seg.weight, 0);
 
-// --- 2. LOGIC ---
 const getWeightedResult = (): WheelSegment => {
     let random = Math.random() * TOTAL_WEIGHT;
     
@@ -39,10 +21,9 @@ const getWeightedResult = (): WheelSegment => {
         }
         random -= segment.weight;
     }
-    return SEGMENTS[0]; // Fallback should technically never happen
+    return SEGMENTS[0];
 };
 
-// --- 3. ENDPOINTS ---
 app.post('/spin', (req: Request, res: Response): any => { 
     // Debug Control: Allow forcing a specific result 
     const { debugForceIndex } = req.body;
@@ -59,7 +40,6 @@ app.post('/spin', (req: Request, res: Response): any => {
     console.log(`index: ${result.id}`);
     console.log(`credits: ${result.credits}`);
     
-    // Return the result to the client
     return res.json({
         stopIndex: result.id,
         creditsWon: result.credits

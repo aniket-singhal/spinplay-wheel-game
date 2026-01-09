@@ -113,7 +113,7 @@ export class BonusScreen extends Container {
             payload.debugForceIndex = forceIndex;
         }
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+            const apiUrl = process.env.API_URL || 'http://localhost:3000';
             const response = await fetch(`${apiUrl}/spin`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
